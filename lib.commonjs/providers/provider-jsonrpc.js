@@ -28,26 +28,28 @@ const subscriber_polling_js_1 = require("./subscriber-polling.js");
 const Primitive = "bigint,boolean,function,number,string,symbol".split(/,/g);
 //const Methods = "getAddress,then".split(/,/g);
 function deepCopy(value) {
-    if (value == null || Primitive.indexOf(typeof (value)) >= 0) {
+    if (value == null || Primitive.indexOf(typeof value) >= 0) {
         return value;
     }
     // Keep any Addressable
-    if (typeof (value.getAddress) === "function") {
+    if (typeof value.getAddress === "function") {
         return value;
     }
     if (Array.isArray(value)) {
-        return (value.map(deepCopy));
+        return value.map(deepCopy);
     }
-    if (typeof (value) === "object") {
+    if (typeof value === "object") {
         return Object.keys(value).reduce((accum, key) => {
             accum[key] = value[key];
             return accum;
         }, {});
     }
-    throw new Error(`should not happen: ${value} (${typeof (value)})`);
+    throw new Error(`should not happen: ${value} (${typeof value})`);
 }
 function stall(duration) {
-    return new Promise((resolve) => { setTimeout(resolve, duration); });
+    return new Promise((resolve) => {
+        setTimeout(resolve, duration);
+    });
 }
 function getLowerCase(value) {
     if (value) {
@@ -56,16 +58,16 @@ function getLowerCase(value) {
     return value;
 }
 function isPollable(value) {
-    return (value && typeof (value.pollingInterval) === "number");
+    return value && typeof value.pollingInterval === "number";
 }
 const defaultOptions = {
     polling: false,
     staticNetwork: null,
     batchStallTime: 10,
-    batchMaxSize: (1 << 20),
+    batchMaxSize: 1 << 20,
     batchMaxCount: 100,
     cacheTimeout: 250,
-    pollingInterval: 4000
+    pollingInterval: 4000,
 };
 // @TODO: Unchecked Signers
 class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
@@ -77,7 +79,7 @@ class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
     }
     connect(provider) {
         (0, index_js_5.assert)(false, "cannot reconnect JsonRpcSigner", "UNSUPPORTED_OPERATION", {
-            operation: "signer.connect"
+            operation: "signer.connect",
         });
     }
     async getAddress() {
@@ -109,7 +111,10 @@ class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
         // we look it up for them.
         if (tx.gasLimit == null) {
             promises.push((async () => {
-                tx.gasLimit = await this.provider.estimateGas({ ...tx, from: this.address });
+                tx.gasLimit = await this.provider.estimateGas({
+                    ...tx,
+                    from: this.address,
+                });
             })());
         }
         // The address may be an ENS name or Addressable
@@ -134,7 +139,7 @@ class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
         // Unfortunately, JSON-RPC only provides and opaque transaction hash
         // for a response, and we need the actual transaction, so we poll
         // for it; it should show up very quickly
-        return await (new Promise((resolve, reject) => {
+        return await new Promise((resolve, reject) => {
             const timeouts = [1000, 100];
             let invalids = 0;
             const checkTx = async () => {
@@ -151,7 +156,8 @@ class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
                     // If the data is bad: the node returns bad transactions
                     // If the network changed: calling again will also fail
                     // If unsupported: likely destroyed
-                    if ((0, index_js_5.isError)(error, "CANCELLED") || (0, index_js_5.isError)(error, "BAD_DATA") ||
+                    if ((0, index_js_5.isError)(error, "CANCELLED") ||
+                        (0, index_js_5.isError)(error, "BAD_DATA") ||
                         (0, index_js_5.isError)(error, "NETWORK_ERROR" || (0, index_js_5.isError)(error, "UNSUPPORTED_OPERATION"))) {
                         if (error.info == null) {
                             error.info = {};
@@ -177,10 +183,12 @@ class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
                     this.provider.emit("error", (0, index_js_5.makeError)("failed to fetch transation after sending (will try again)", "UNKNOWN_ERROR", { error }));
                 }
                 // Wait another 4 seconds
-                this.provider._setTimeout(() => { checkTx(); }, timeouts.pop() || 4000);
+                this.provider._setTimeout(() => {
+                    checkTx();
+                }, timeouts.pop() || 4000);
             };
             checkTx();
-        }));
+        });
     }
     async signTransaction(_tx) {
         const tx = deepCopy(_tx);
@@ -197,9 +205,10 @@ class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
         return await this.provider.send("eth_signTransaction", [hexTx]);
     }
     async signMessage(_message) {
-        const message = ((typeof (_message) === "string") ? (0, index_js_5.toUtf8Bytes)(_message) : _message);
+        const message = typeof _message === "string" ? (0, index_js_5.toUtf8Bytes)(_message) : _message;
         return await this.provider.send("personal_sign", [
-            (0, index_js_5.hexlify)(message), this.address.toLowerCase()
+            (0, index_js_5.hexlify)(message),
+            this.address.toLowerCase(),
         ]);
     }
     async signTypedData(domain, types, _value) {
@@ -212,19 +221,22 @@ class JsonRpcSigner extends abstract_signer_js_1.AbstractSigner {
         });
         return await this.provider.send("eth_signTypedData_v4", [
             this.address.toLowerCase(),
-            JSON.stringify(index_js_3.TypedDataEncoder.getPayload(populated.domain, types, populated.value))
+            JSON.stringify(index_js_3.TypedDataEncoder.getPayload(populated.domain, types, populated.value)),
         ]);
     }
     async unlock(password) {
         return this.provider.send("personal_unlockAccount", [
-            this.address.toLowerCase(), password, null
+            this.address.toLowerCase(),
+            password,
+            null,
         ]);
     }
     // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_sign
     async _legacySignMessage(_message) {
-        const message = ((typeof (_message) === "string") ? (0, index_js_5.toUtf8Bytes)(_message) : _message);
+        const message = typeof _message === "string" ? (0, index_js_5.toUtf8Bytes)(_message) : _message;
         return await this.provider.send("eth_sign", [
-            this.address.toLowerCase(), (0, index_js_5.hexlify)(message)
+            this.address.toLowerCase(),
+            (0, index_js_5.hexlify)(message),
         ]);
     }
 }
@@ -254,28 +266,30 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
             return;
         }
         // If we aren't using batching, no harm in sending it immediately
-        const stallTime = (this._getOption("batchMaxCount") === 1) ? 0 : this._getOption("batchStallTime");
+        const stallTime = this._getOption("batchMaxCount") === 1
+            ? 0
+            : this._getOption("batchStallTime");
         this.#drainTimer = setTimeout(() => {
             this.#drainTimer = null;
             const payloads = this.#payloads;
             this.#payloads = [];
             while (payloads.length) {
                 // Create payload batches that satisfy our batch constraints
-                const batch = [(payloads.shift())];
+                const batch = [payloads.shift()];
                 while (payloads.length) {
                     if (batch.length === this.#options.batchMaxCount) {
                         break;
                     }
-                    batch.push((payloads.shift()));
+                    batch.push(payloads.shift());
                     const bytes = JSON.stringify(batch.map((p) => p.payload));
                     if (bytes.length > this.#options.batchMaxSize) {
-                        payloads.unshift((batch.pop()));
+                        payloads.unshift(batch.pop());
                         break;
                     }
                 }
                 // Process the result to each payload
                 (async () => {
-                    const payload = ((batch.length === 1) ? batch[0].payload : batch.map((p) => p.payload));
+                    const payload = batch.length === 1 ? batch[0].payload : batch.map((p) => p.payload);
                     this.emit("debug", { action: "sendRpcPayload", payload });
                     try {
                         const result = await this._send(payload);
@@ -287,11 +301,12 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
                                 continue;
                             }
                             // Find the matching result
-                            const resp = result.filter((r) => (r.id === payload.id))[0];
+                            const resp = result.filter((r) => r.id === payload.id)[0];
                             // No result; the node failed us in unexpected ways
                             if (resp == null) {
                                 const error = (0, index_js_5.makeError)("missing response for request", "BAD_DATA", {
-                                    value: result, info: { payload }
+                                    value: result,
+                                    info: { payload },
                                 });
                                 this.emit("error", error);
                                 reject(error);
@@ -333,7 +348,7 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
             this.#notReady = { promise, resolve };
         }
         const staticNetwork = this._getOption("staticNetwork");
-        if (typeof (staticNetwork) === "boolean") {
+        if (typeof staticNetwork === "boolean") {
             (0, index_js_5.assertArgument)(!staticNetwork || network !== "any", "staticNetwork cannot be used on special network 'any'", "options", options);
             if (staticNetwork && network != null) {
                 this.#network = network_js_1.Network.from(network);
@@ -376,10 +391,11 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
                 // If there are no EIP-1559 properties, it might be non-EIP-a559
                 if (tx.maxFeePerGas == null && tx.maxPriorityFeePerGas == null) {
                     const feeData = await this.getFeeData();
-                    if (feeData.maxFeePerGas == null && feeData.maxPriorityFeePerGas == null) {
+                    if (feeData.maxFeePerGas == null &&
+                        feeData.maxPriorityFeePerGas == null) {
                         // Network doesn't know about EIP-1559 (and hence type)
                         req = Object.assign({}, req, {
-                            transaction: Object.assign({}, tx, { type: undefined })
+                            transaction: Object.assign({}, tx, { type: undefined }),
                         });
                     }
                 }
@@ -431,7 +447,10 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
         // We are not ready yet; use the primitive _send
         this.#pendingDetectNetwork = (async () => {
             const payload = {
-                id: this.#nextId++, method: "eth_chainId", params: [], jsonrpc: "2.0"
+                id: this.#nextId++,
+                method: "eth_chainId",
+                params: [],
+                jsonrpc: "2.0",
             };
             this.emit("debug", { action: "sendRpcPayload", payload });
             let result;
@@ -522,7 +541,9 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
     /**
      *  Returns true only if the [[_start]] has been called.
      */
-    get ready() { return this.#notReady == null; }
+    get ready() {
+        return this.#notReady == null;
+    }
     /**
      *  Returns %%tx%% as a normalized JSON-RPC transaction request,
      *  which has all values hexlified and any numeric values converted
@@ -531,7 +552,16 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
     getRpcTransaction(tx) {
         const result = {};
         // JSON-RPC now requires numeric values to be "quantity" values
-        ["chainId", "gasLimit", "gasPrice", "type", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "value"].forEach((key) => {
+        [
+            "chainId",
+            "gasLimit",
+            "gasPrice",
+            "type",
+            "maxFeePerGas",
+            "maxPriorityFeePerGas",
+            "nonce",
+            "value",
+        ].forEach((key) => {
             if (tx[key] == null) {
                 return;
             }
@@ -571,65 +601,65 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
             case "getBalance":
                 return {
                     method: "eth_getBalance",
-                    args: [getLowerCase(req.address), req.blockTag]
+                    args: [getLowerCase(req.address), req.blockTag],
                 };
             case "getTransactionCount":
                 return {
                     method: "eth_getTransactionCount",
-                    args: [getLowerCase(req.address), req.blockTag]
+                    args: [getLowerCase(req.address), req.blockTag],
                 };
             case "getCode":
                 return {
                     method: "eth_getCode",
-                    args: [getLowerCase(req.address), req.blockTag]
+                    args: [getLowerCase(req.address), req.blockTag],
                 };
             case "getStorage":
                 return {
                     method: "eth_getStorageAt",
                     args: [
                         getLowerCase(req.address),
-                        ("0x" + req.position.toString(16)),
-                        req.blockTag
-                    ]
+                        "0x" + req.position.toString(16),
+                        req.blockTag,
+                    ],
                 };
             case "broadcastTransaction":
                 return {
                     method: "eth_sendRawTransaction",
-                    args: [req.signedTransaction]
+                    args: [req.signedTransaction],
                 };
             case "getBlock":
                 if ("blockTag" in req) {
                     return {
                         method: "eth_getBlockByNumber",
-                        args: [req.blockTag, !!req.includeTransactions]
+                        args: [req.blockTag, !!req.includeTransactions],
                     };
                 }
                 else if ("blockHash" in req) {
                     return {
                         method: "eth_getBlockByHash",
-                        args: [req.blockHash, !!req.includeTransactions]
+                        args: [req.blockHash, !!req.includeTransactions],
                     };
                 }
                 break;
             case "getTransaction":
                 return {
                     method: "eth_getTransactionByHash",
-                    args: [req.hash]
+                    args: [req.hash],
                 };
             case "getTransactionReceipt":
                 return {
                     method: "eth_getTransactionReceipt",
-                    args: [req.hash]
+                    args: [req.hash],
                 };
             case "call":
                 return {
                     method: "eth_call",
-                    args: [this.getRpcTransaction(req.transaction), req.blockTag]
+                    args: [this.getRpcTransaction(req.transaction), req.blockTag],
                 };
             case "estimateGas": {
                 return {
                     method: "eth_estimateGas",
-                    args: [this.getRpcTransaction(req.transaction)]
+                    args: [this.getRpcTransaction(req.transaction)],
                 };
             }
             case "getLogs":
@@ -658,21 +688,22 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
             const msg = error.message;
             if (!msg.match(/revert/i) && msg.match(/insufficient funds/i)) {
                 return (0, index_js_5.makeError)("insufficient funds", "INSUFFICIENT_FUNDS", {
-                    transaction: (payload.params[0]),
-                    info: { payload, error }
+                    transaction: payload.params[0],
+                    info: { payload, error },
                 });
             }
         }
         if (method === "eth_call" || method === "eth_estimateGas") {
             const result = spelunkData(error);
-            const e = index_js_1.AbiCoder.getBuiltinCallException((method === "eth_call") ? "call" : "estimateGas", (payload.params[0]), (result ? result.data : null));
+            const e = index_js_1.AbiCoder.getBuiltinCallException(method === "eth_call" ? "call" : "estimateGas", payload.params[0], result ? result.data : null);
             e.info = { error, payload };
             return e;
         }
         // Only estimateGas and call can return arbitrary contract-defined text, so now we
         // we can process text safely.
         const message = JSON.stringify(spelunkMessage(error));
-        if (typeof (error.message) === "string" && error.message.match(/user denied|ethers-user-denied/i)) {
+        if (typeof error.message === "string" &&
+            error.message.match(/user denied|ethers-user-denied/i)) {
             const actionMap = {
                 eth_sign: "signMessage",
                 personal_sign: "signMessage",
@@ -683,43 +714,59 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
                 wallet_requestAccounts: "requestAccess",
             };
             return (0, index_js_5.makeError)(`user rejected action`, "ACTION_REJECTED", {
-                action: (actionMap[method] || "unknown"),
+                action: actionMap[method] || "unknown",
                 reason: "rejected",
-                info: { payload, error }
+                info: { payload, error },
             });
         }
-        if (method === "eth_sendRawTransaction" || method === "eth_sendTransaction") {
-            const transaction = (payload.params[0]);
+        if (method === "eth_sendRawTransaction" ||
+            method === "eth_sendTransaction") {
+            const transaction = payload.params[0];
             if (message.match(/insufficient funds|base fee exceeds gas limit/i)) {
                 return (0, index_js_5.makeError)("insufficient funds for intrinsic transaction cost", "INSUFFICIENT_FUNDS", {
-                    transaction, info: { error }
+                    transaction,
+                    info: { error },
                 });
             }
             if (message.match(/nonce/i) && message.match(/too low/i)) {
-                return (0, index_js_5.makeError)("nonce has already been used", "NONCE_EXPIRED", { transaction, info: { error } });
+                return (0, index_js_5.makeError)("nonce has already been used", "NONCE_EXPIRED", {
+                    transaction,
+                    info: { error },
+                });
             }
             // "replacement transaction underpriced"
-            if (message.match(/replacement transaction/i) && message.match(/underpriced/i)) {
-                return (0, index_js_5.makeError)("replacement fee too low", "REPLACEMENT_UNDERPRICED", { transaction, info: { error } });
+            if (message.match(/replacement transaction/i) &&
+                message.match(/underpriced/i)) {
+                return (0, index_js_5.makeError)("replacement fee too low", "REPLACEMENT_UNDERPRICED", {
+                    transaction,
+                    info: { error },
+                });
             }
             if (message.match(/only replay-protected/i)) {
                 return (0, index_js_5.makeError)("legacy pre-eip-155 transactions not supported", "UNSUPPORTED_OPERATION", {
-                    operation: method, info: { transaction, info: { error } }
+                    operation: method,
+                    info: { transaction, info: { error } },
                 });
             }
         }
         let unsupported = !!message.match(/the method .* does not exist/i);
         if (!unsupported) {
-            if (error && error.details && error.details.startsWith("Unauthorized method:")) {
+            if (error &&
+                error.details &&
+                error.details.startsWith("Unauthorized method:")) {
                 unsupported = true;
             }
         }
         if (unsupported) {
             return (0, index_js_5.makeError)("unsupported operation", "UNSUPPORTED_OPERATION", {
-                operation: payload.method, info: { error, payload }
+                operation: payload.method,
+                info: { error, payload },
             });
         }
-        return (0, index_js_5.makeError)("could not coalesce error", "UNKNOWN_ERROR", { error, payload });
+        return (0, index_js_5.makeError)("could not coalesce error", "UNKNOWN_ERROR", {
+            error,
+            payload,
+        });
     }
     /**
      *  Requests the %%method%% with %%params%% via the JSON-RPC protocol
@@ -743,8 +790,9 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
         const id = this.#nextId++;
         const promise = new Promise((resolve, reject) => {
             this.#payloads.push({
-                resolve, reject,
-                payload: { method, params, id, jsonrpc: "2.0" }
+                resolve,
+                reject,
+                payload: { method, params, id, jsonrpc: "2.0" },
             });
         });
         // If there is not a pending drainTimer, set one
@@ -769,8 +817,8 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
         }
         const accountsPromise = this.send("eth_accounts", []);
         // Account index
-        if (typeof (address) === "number") {
-            const accounts = (await accountsPromise);
+        if (typeof address === "number") {
+            const accounts = await accountsPromise;
             if (address >= accounts.length) {
                 throw new Error("no such account");
             }
@@ -778,7 +826,7 @@ class JsonRpcApiProvider extends abstract_provider_js_1.AbstractProvider {
         }
         const { accounts } = await (0, index_js_5.resolveProperties)({
             network: this.getNetwork(),
-            accounts: accountsPromise
+            accounts: accountsPromise,
         });
         // Account address
         address = (0, index_js_2.getAddress)(address);
@@ -831,7 +879,9 @@ class JsonRpcApiPollingProvider extends JsonRpcApiProvider {
     /**
      *  The polling interval (default: 4000 ms)
      */
-    get pollingInterval() { return this.#pollingInterval; }
+    get pollingInterval() {
+        return this.#pollingInterval;
+    }
     set pollingInterval(value) {
         if (!Number.isInteger(value) || value < 0) {
             throw new Error("invalid interval");
@@ -857,10 +907,10 @@ class JsonRpcProvider extends JsonRpcApiPollingProvider {
     #connect;
     constructor(url, network, options) {
         if (url == null) {
-            url = "http:/\/localhost:8545";
+            url = "http://localhost:8545";
         }
         super(network, options);
-        if (typeof (url) === "string") {
+        if (typeof url === "string") {
             this.#connect = new index_js_5.FetchRequest(url);
         }
         else {
@@ -897,11 +947,13 @@ function spelunkData(value) {
         return null;
     }
     // These *are* the droids we're looking for.
-    if (typeof (value.message) === "string" && value.message.match(/revert/i) && (0, index_js_5.isHexString)(value.data)) {
+    if (typeof value.message === "string" &&
+        value.message.match(/revert/i) &&
+        (0, index_js_5.isHexString)(value.data)) {
         return { message: value.message, data: value.data };
     }
     // Spelunk further...
-    if (typeof (value) === "object") {
+    if (typeof value === "object") {
         for (const key in value) {
             const result = spelunkData(value[key]);
             if (result) {
@@ -911,7 +963,7 @@ function spelunkData(value) {
         return null;
     }
     // Might be a JSON string we can further descend...
-    if (typeof (value) === "string") {
+    if (typeof value === "string") {
         try {
             return spelunkData(JSON.parse(value));
         }
@@ -924,17 +976,17 @@ function _spelunkMessage(value, result) {
         return;
     }
     // These *are* the droids we're looking for.
-    if (typeof (value.message) === "string") {
+    if (typeof value.message === "string") {
         result.push(value.message);
     }
     // Spelunk further...
-    if (typeof (value) === "object") {
+    if (typeof value === "object") {
         for (const key in value) {
             _spelunkMessage(value[key], result);
         }
     }
     // Might be a JSON string we can further descend...
-    if (typeof (value) === "string") {
+    if (typeof value === "string") {
         try {
             return _spelunkMessage(JSON.parse(value), result);
         }

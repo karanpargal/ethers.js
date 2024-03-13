@@ -3,8 +3,7 @@ import { AlchemyProvider,
 //    CloudflareProvider,
 EtherscanProvider, InfuraProvider, 
 //    PocketProvider,
-QuickNodeProvider, FallbackProvider, isError, } from "../index.js";
-;
+QuickNodeProvider, CovalentRPCProvider, FallbackProvider, isError, } from "../index.js";
 const ethNetworks = ["default", "mainnet", "goerli"];
 //const maticNetworks = [ "matic", "maticmum" ];
 const ProviderCreators = [
@@ -13,69 +12,82 @@ const ProviderCreators = [
         networks: ethNetworks,
         create: function (network) {
             return new AlchemyProvider(network, "YrPw6SWb20vJDRFkhWq8aKnTQ8JRNRHM");
-        }
+        },
     },
     /*
-    {
-        name: "AnkrProvider",
-        networks: ethNetworks.concat([ "matic", "arbitrum" ]),
-        create: function(network: string) {
-            return new AnkrProvider(network);
-        }
-    },
-    */
+      {
+          name: "AnkrProvider",
+          networks: ethNetworks.concat([ "matic", "arbitrum" ]),
+          create: function(network: string) {
+              return new AnkrProvider(network);
+          }
+      },
+      */
     /*
-    {
-        name: "CloudflareProvider",
-        networks: [ "default", "mainnet" ],
-        create: function(network: string) {
-            return new CloudflareProvider(network);
-        }
-    },
-    */
+      {
+          name: "CloudflareProvider",
+          networks: [ "default", "mainnet" ],
+          create: function(network: string) {
+              return new CloudflareProvider(network);
+          }
+      },
+      */
     {
         name: "EtherscanProvider",
         networks: ethNetworks,
         create: function (network) {
             return new EtherscanProvider(network, "FPFGK6JSW2UHJJ2666FG93KP7WC999MNW7");
-        }
+        },
     },
     {
         name: "InfuraProvider",
         networks: ethNetworks,
         create: function (network) {
             return new InfuraProvider(network, "49a0efa3aaee4fd99797bfa94d8ce2f1");
-        }
+        },
     },
     {
         name: "InfuraWebsocketProvider",
         networks: ethNetworks,
         create: function (network) {
             return InfuraProvider.getWebSocketProvider(network, "49a0efa3aaee4fd99797bfa94d8ce2f1");
-        }
+        },
     },
     /*
-        {
-            name: "PocketProvider",
-            networks: ethNetworks,
-            create: function(network: string) {
-                return new PocketProvider(network);
-            }
-        },
-    */
+      {
+          name: "PocketProvider",
+          networks: ethNetworks,
+          create: function(network: string) {
+              return new PocketProvider(network);
+          }
+      },
+  */
     {
         name: "QuickNodeProvider",
         networks: ethNetworks,
         create: function (network) {
             return new QuickNodeProvider(network);
-        }
+        },
+    },
+    {
+        name: "CovaletRPCProvider",
+        networks: ethNetworks,
+        create: function (network) {
+            return new CovalentRPCProvider(network);
+        },
     },
     {
         name: "FallbackProvider",
         networks: ethNetworks,
         create: function (network) {
             const providers = [];
-            for (const providerName of ["AlchemyProvider", "AnkrProvider", "EtherscanProvider", "InfuraProvider"]) {
+            for (const providerName of [
+                "AlchemyProvider",
+                "AnkrProvider",
+                "EtherscanProvider",
+                "InfuraProvider",
+                "CovalentRPCProvider",
+            ]) {
                 const provider = getProvider(providerName, network);
                 if (provider) {
                     providers.push(provider);
@@ -85,7 +97,7 @@ const ProviderCreators = [
                 throw new Error("UNSUPPORTED NETWORK");
             }
             return new FallbackProvider(providers);
-        }
+        },
     },
 ];
 let setup = false;
@@ -98,9 +110,9 @@ export function setupProviders() {
     });
     setup = true;
 }
-export const providerNames = Object.freeze(ProviderCreators.map((c) => (c.name)));
+export const providerNames = Object.freeze(ProviderCreators.map((c) => c.name));
 function getCreator(provider) {
-    const creators = ProviderCreators.filter((c) => (c.name === provider));
+    const creators = ProviderCreators.filter((c) => c.name === provider);
     if (creators.length === 1) {
         return creators[0];
     }
@@ -122,7 +134,9 @@ export function getProvider(provider, network) {
         if (creator) {
             const provider = creator.create(network);
             if (provider) {
-                cleanup.push(() => { provider.destroy(); });
+                cleanup.push(() => {
+                    provider.destroy();
+                });
             }
             return provider;
         }
@@ -136,7 +150,7 @@ export function getProvider(provider, network) {
 }
 export function checkProvider(provider, network) {
     const creator = getCreator(provider);
-    return (creator != null);
+    return creator != null;
 }
 export function connect(network) {
     const provider = getProvider("InfuraProvider", network);

@@ -19666,26 +19666,28 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
     const Primitive = "bigint,boolean,function,number,string,symbol".split(/,/g);
     //const Methods = "getAddress,then".split(/,/g);
     function deepCopy(value) {
-        if (value == null || Primitive.indexOf(typeof (value)) >= 0) {
+        if (value == null || Primitive.indexOf(typeof value) >= 0) {
             return value;
         }
         // Keep any Addressable
-        if (typeof (value.getAddress) === "function") {
+        if (typeof value.getAddress === "function") {
             return value;
         }
         if (Array.isArray(value)) {
-            return (value.map(deepCopy));
+            return value.map(deepCopy);
         }
-        if (typeof (value) === "object") {
+        if (typeof value === "object") {
             return Object.keys(value).reduce((accum, key) => {
                 accum[key] = value[key];
                 return accum;
             }, {});
         }
-        throw new Error(`should not happen: ${value} (${typeof (value)})`);
+        throw new Error(`should not happen: ${value} (${typeof value})`);
     }
     function stall$3(duration) {
-        return new Promise((resolve) => { setTimeout(resolve, duration); });
+        return new Promise((resolve) => {
+            setTimeout(resolve, duration);
+        });
     }
     function getLowerCase(value) {
         if (value) {
@@ -19694,16 +19696,16 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         return value;
     }
     function isPollable(value) {
-        return (value && typeof (value.pollingInterval) === "number");
+        return value && typeof value.pollingInterval === "number";
     }
     const defaultOptions = {
         polling: false,
         staticNetwork: null,
         batchStallTime: 10,
-        batchMaxSize: (1 << 20),
+        batchMaxSize: 1 << 20,
         batchMaxCount: 100,
         cacheTimeout: 250,
-        pollingInterval: 4000
+        pollingInterval: 4000,
     };
     // @TODO: Unchecked Signers
     class JsonRpcSigner extends AbstractSigner {
@@ -19715,7 +19717,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         }
         connect(provider) {
             assert(false, "cannot reconnect JsonRpcSigner", "UNSUPPORTED_OPERATION", {
-                operation: "signer.connect"
+                operation: "signer.connect",
             });
         }
         async getAddress() {
@@ -19747,7 +19749,10 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             // we look it up for them.
             if (tx.gasLimit == null) {
                 promises.push((async () => {
-                    tx.gasLimit = await this.provider.estimateGas({ ...tx, from: this.address });
+                    tx.gasLimit = await this.provider.estimateGas({
+                        ...tx,
+                        from: this.address,
+                    });
                 })());
             }
             // The address may be an ENS name or Addressable
@@ -19772,7 +19777,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             // Unfortunately, JSON-RPC only provides and opaque transaction hash
             // for a response, and we need the actual transaction, so we poll
             // for it; it should show up very quickly
-            return await (new Promise((resolve, reject) => {
+            return await new Promise((resolve, reject) => {
                 const timeouts = [1000, 100];
                 let invalids = 0;
                 const checkTx = async () => {
@@ -19789,7 +19794,8 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                         // If the data is bad: the node returns bad transactions
                         // If the network changed: calling again will also fail
                         // If unsupported: likely destroyed
-                        if (isError(error, "CANCELLED") || isError(error, "BAD_DATA") ||
+                        if (isError(error, "CANCELLED") ||
+                            isError(error, "BAD_DATA") ||
                             isError(error, "NETWORK_ERROR" )) {
                             if (error.info == null) {
                                 error.info = {};
@@ -19815,10 +19821,12 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                         this.provider.emit("error", makeError("failed to fetch transation after sending (will try again)", "UNKNOWN_ERROR", { error }));
                     }
                     // Wait another 4 seconds
-                    this.provider._setTimeout(() => { checkTx(); }, timeouts.pop() || 4000);
+                    this.provider._setTimeout(() => {
+                        checkTx();
+                    }, timeouts.pop() || 4000);
                 };
                 checkTx();
-            }));
+            });
         }
         async signTransaction(_tx) {
             const tx = deepCopy(_tx);
@@ -19835,9 +19843,10 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             return await this.provider.send("eth_signTransaction", [hexTx]);
         }
         async signMessage(_message) {
-            const message = ((typeof (_message) === "string") ? toUtf8Bytes(_message) : _message);
+            const message = typeof _message === "string" ? toUtf8Bytes(_message) : _message;
             return await this.provider.send("personal_sign", [
-                hexlify(message), this.address.toLowerCase()
+                hexlify(message),
+                this.address.toLowerCase(),
             ]);
         }
         async signTypedData(domain, types, _value) {
@@ -19850,19 +19859,22 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             });
             return await this.provider.send("eth_signTypedData_v4", [
                 this.address.toLowerCase(),
-                JSON.stringify(TypedDataEncoder.getPayload(populated.domain, types, populated.value))
+                JSON.stringify(TypedDataEncoder.getPayload(populated.domain, types, populated.value)),
             ]);
         }
         async unlock(password) {
             return this.provider.send("personal_unlockAccount", [
-                this.address.toLowerCase(), password, null
+                this.address.toLowerCase(),
+                password,
+                null,
             ]);
         }
         // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_sign
         async _legacySignMessage(_message) {
-            const message = ((typeof (_message) === "string") ? toUtf8Bytes(_message) : _message);
+            const message = typeof _message === "string" ? toUtf8Bytes(_message) : _message;
             return await this.provider.send("eth_sign", [
-                this.address.toLowerCase(), hexlify(message)
+                this.address.toLowerCase(),
+                hexlify(message),
             ]);
         }
     }
@@ -19891,28 +19903,30 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                 return;
             }
             // If we aren't using batching, no harm in sending it immediately
-            const stallTime = (this._getOption("batchMaxCount") === 1) ? 0 : this._getOption("batchStallTime");
+            const stallTime = this._getOption("batchMaxCount") === 1
+                ? 0
+                : this._getOption("batchStallTime");
             this.#drainTimer = setTimeout(() => {
                 this.#drainTimer = null;
                 const payloads = this.#payloads;
                 this.#payloads = [];
                 while (payloads.length) {
                     // Create payload batches that satisfy our batch constraints
-                    const batch = [(payloads.shift())];
+                    const batch = [payloads.shift()];
                     while (payloads.length) {
                         if (batch.length === this.#options.batchMaxCount) {
                             break;
                         }
-                        batch.push((payloads.shift()));
+                        batch.push(payloads.shift());
                         const bytes = JSON.stringify(batch.map((p) => p.payload));
                         if (bytes.length > this.#options.batchMaxSize) {
-                            payloads.unshift((batch.pop()));
+                            payloads.unshift(batch.pop());
                             break;
                         }
                     }
                     // Process the result to each payload
                     (async () => {
-                        const payload = ((batch.length === 1) ? batch[0].payload : batch.map((p) => p.payload));
+                        const payload = batch.length === 1 ? batch[0].payload : batch.map((p) => p.payload);
                         this.emit("debug", { action: "sendRpcPayload", payload });
                         try {
                             const result = await this._send(payload);
@@ -19924,11 +19938,12 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                                     continue;
                                 }
                                 // Find the matching result
-                                const resp = result.filter((r) => (r.id === payload.id))[0];
+                                const resp = result.filter((r) => r.id === payload.id)[0];
                                 // No result; the node failed us in unexpected ways
                                 if (resp == null) {
                                     const error = makeError("missing response for request", "BAD_DATA", {
-                                        value: result, info: { payload }
+                                        value: result,
+                                        info: { payload },
                                     });
                                     this.emit("error", error);
                                     reject(error);
@@ -19970,7 +19985,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                 this.#notReady = { promise, resolve };
             }
             const staticNetwork = this._getOption("staticNetwork");
-            if (typeof (staticNetwork) === "boolean") {
+            if (typeof staticNetwork === "boolean") {
                 assertArgument(!staticNetwork || network !== "any", "staticNetwork cannot be used on special network 'any'", "options", options);
                 if (staticNetwork && network != null) {
                     this.#network = Network.from(network);
@@ -20013,10 +20028,11 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                     // If there are no EIP-1559 properties, it might be non-EIP-a559
                     if (tx.maxFeePerGas == null && tx.maxPriorityFeePerGas == null) {
                         const feeData = await this.getFeeData();
-                        if (feeData.maxFeePerGas == null && feeData.maxPriorityFeePerGas == null) {
+                        if (feeData.maxFeePerGas == null &&
+                            feeData.maxPriorityFeePerGas == null) {
                             // Network doesn't know about EIP-1559 (and hence type)
                             req = Object.assign({}, req, {
-                                transaction: Object.assign({}, tx, { type: undefined })
+                                transaction: Object.assign({}, tx, { type: undefined }),
                             });
                         }
                     }
@@ -20068,7 +20084,10 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             // We are not ready yet; use the primitive _send
             this.#pendingDetectNetwork = (async () => {
                 const payload = {
-                    id: this.#nextId++, method: "eth_chainId", params: [], jsonrpc: "2.0"
+                    id: this.#nextId++,
+                    method: "eth_chainId",
+                    params: [],
+                    jsonrpc: "2.0",
                 };
                 this.emit("debug", { action: "sendRpcPayload", payload });
                 let result;
@@ -20159,7 +20178,9 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         /**
          *  Returns true only if the [[_start]] has been called.
          */
-        get ready() { return this.#notReady == null; }
+        get ready() {
+            return this.#notReady == null;
+        }
         /**
          *  Returns %%tx%% as a normalized JSON-RPC transaction request,
          *  which has all values hexlified and any numeric values converted
@@ -20168,7 +20189,16 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         getRpcTransaction(tx) {
             const result = {};
             // JSON-RPC now requires numeric values to be "quantity" values
-            ["chainId", "gasLimit", "gasPrice", "type", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "value"].forEach((key) => {
+            [
+                "chainId",
+                "gasLimit",
+                "gasPrice",
+                "type",
+                "maxFeePerGas",
+                "maxPriorityFeePerGas",
+                "nonce",
+                "value",
+            ].forEach((key) => {
                 if (tx[key] == null) {
                     return;
                 }
@@ -20208,65 +20238,65 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                 case "getBalance":
                     return {
                         method: "eth_getBalance",
-                        args: [getLowerCase(req.address), req.blockTag]
+                        args: [getLowerCase(req.address), req.blockTag],
                     };
                 case "getTransactionCount":
                     return {
                         method: "eth_getTransactionCount",
-                        args: [getLowerCase(req.address), req.blockTag]
+                        args: [getLowerCase(req.address), req.blockTag],
                     };
                 case "getCode":
                     return {
                         method: "eth_getCode",
-                        args: [getLowerCase(req.address), req.blockTag]
+                        args: [getLowerCase(req.address), req.blockTag],
                     };
                 case "getStorage":
                     return {
                         method: "eth_getStorageAt",
                         args: [
                             getLowerCase(req.address),
-                            ("0x" + req.position.toString(16)),
-                            req.blockTag
-                        ]
+                            "0x" + req.position.toString(16),
+                            req.blockTag,
+                        ],
                     };
                 case "broadcastTransaction":
                     return {
                         method: "eth_sendRawTransaction",
-                        args: [req.signedTransaction]
+                        args: [req.signedTransaction],
                     };
                 case "getBlock":
                     if ("blockTag" in req) {
                         return {
                             method: "eth_getBlockByNumber",
-                            args: [req.blockTag, !!req.includeTransactions]
+                            args: [req.blockTag, !!req.includeTransactions],
                         };
                     }
                     else if ("blockHash" in req) {
                         return {
                             method: "eth_getBlockByHash",
-                            args: [req.blockHash, !!req.includeTransactions]
+                            args: [req.blockHash, !!req.includeTransactions],
                         };
                     }
                     break;
                 case "getTransaction":
                     return {
                         method: "eth_getTransactionByHash",
-                        args: [req.hash]
+                        args: [req.hash],
                     };
                 case "getTransactionReceipt":
                     return {
                         method: "eth_getTransactionReceipt",
-                        args: [req.hash]
+                        args: [req.hash],
                     };
                 case "call":
                     return {
                         method: "eth_call",
-                        args: [this.getRpcTransaction(req.transaction), req.blockTag]
+                        args: [this.getRpcTransaction(req.transaction), req.blockTag],
                     };
                 case "estimateGas": {
                     return {
                         method: "eth_estimateGas",
-                        args: [this.getRpcTransaction(req.transaction)]
+                        args: [this.getRpcTransaction(req.transaction)],
                     };
                 }
                 case "getLogs":
@@ -20295,21 +20325,22 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                 const msg = error.message;
                 if (!msg.match(/revert/i) && msg.match(/insufficient funds/i)) {
                     return makeError("insufficient funds", "INSUFFICIENT_FUNDS", {
-                        transaction: (payload.params[0]),
-                        info: { payload, error }
+                        transaction: payload.params[0],
+                        info: { payload, error },
                     });
                 }
             }
             if (method === "eth_call" || method === "eth_estimateGas") {
                 const result = spelunkData(error);
-                const e = AbiCoder.getBuiltinCallException((method === "eth_call") ? "call" : "estimateGas", (payload.params[0]), (result ? result.data : null));
+                const e = AbiCoder.getBuiltinCallException(method === "eth_call" ? "call" : "estimateGas", payload.params[0], result ? result.data : null);
                 e.info = { error, payload };
                 return e;
             }
             // Only estimateGas and call can return arbitrary contract-defined text, so now we
             // we can process text safely.
             const message = JSON.stringify(spelunkMessage(error));
-            if (typeof (error.message) === "string" && error.message.match(/user denied|ethers-user-denied/i)) {
+            if (typeof error.message === "string" &&
+                error.message.match(/user denied|ethers-user-denied/i)) {
                 const actionMap = {
                     eth_sign: "signMessage",
                     personal_sign: "signMessage",
@@ -20320,43 +20351,59 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
                     wallet_requestAccounts: "requestAccess",
                 };
                 return makeError(`user rejected action`, "ACTION_REJECTED", {
-                    action: (actionMap[method] || "unknown"),
+                    action: actionMap[method] || "unknown",
                     reason: "rejected",
-                    info: { payload, error }
+                    info: { payload, error },
                 });
             }
-            if (method === "eth_sendRawTransaction" || method === "eth_sendTransaction") {
-                const transaction = (payload.params[0]);
+            if (method === "eth_sendRawTransaction" ||
+                method === "eth_sendTransaction") {
+                const transaction = payload.params[0];
                 if (message.match(/insufficient funds|base fee exceeds gas limit/i)) {
                     return makeError("insufficient funds for intrinsic transaction cost", "INSUFFICIENT_FUNDS", {
-                        transaction, info: { error }
+                        transaction,
+                        info: { error },
                     });
                 }
                 if (message.match(/nonce/i) && message.match(/too low/i)) {
-                    return makeError("nonce has already been used", "NONCE_EXPIRED", { transaction, info: { error } });
+                    return makeError("nonce has already been used", "NONCE_EXPIRED", {
+                        transaction,
+                        info: { error },
+                    });
                 }
                 // "replacement transaction underpriced"
-                if (message.match(/replacement transaction/i) && message.match(/underpriced/i)) {
-                    return makeError("replacement fee too low", "REPLACEMENT_UNDERPRICED", { transaction, info: { error } });
+                if (message.match(/replacement transaction/i) &&
+                    message.match(/underpriced/i)) {
+                    return makeError("replacement fee too low", "REPLACEMENT_UNDERPRICED", {
+                        transaction,
+                        info: { error },
+                    });
                 }
                 if (message.match(/only replay-protected/i)) {
                     return makeError("legacy pre-eip-155 transactions not supported", "UNSUPPORTED_OPERATION", {
-                        operation: method, info: { transaction, info: { error } }
+                        operation: method,
+                        info: { transaction, info: { error } },
                     });
                 }
             }
             let unsupported = !!message.match(/the method .* does not exist/i);
             if (!unsupported) {
-                if (error && error.details && error.details.startsWith("Unauthorized method:")) {
+                if (error &&
+                    error.details &&
+                    error.details.startsWith("Unauthorized method:")) {
                     unsupported = true;
                 }
             }
             if (unsupported) {
                 return makeError("unsupported operation", "UNSUPPORTED_OPERATION", {
-                    operation: payload.method, info: { error, payload }
+                    operation: payload.method,
+                    info: { error, payload },
                 });
             }
-            return makeError("could not coalesce error", "UNKNOWN_ERROR", { error, payload });
+            return makeError("could not coalesce error", "UNKNOWN_ERROR", {
+                error,
+                payload,
+            });
         }
         /**
          *  Requests the %%method%% with %%params%% via the JSON-RPC protocol
@@ -20380,8 +20427,9 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             const id = this.#nextId++;
             const promise = new Promise((resolve, reject) => {
                 this.#payloads.push({
-                    resolve, reject,
-                    payload: { method, params, id, jsonrpc: "2.0" }
+                    resolve,
+                    reject,
+                    payload: { method, params, id, jsonrpc: "2.0" },
                 });
             });
             // If there is not a pending drainTimer, set one
@@ -20406,8 +20454,8 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             }
             const accountsPromise = this.send("eth_accounts", []);
             // Account index
-            if (typeof (address) === "number") {
-                const accounts = (await accountsPromise);
+            if (typeof address === "number") {
+                const accounts = await accountsPromise;
                 if (address >= accounts.length) {
                     throw new Error("no such account");
                 }
@@ -20415,7 +20463,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             }
             const { accounts } = await resolveProperties({
                 network: this.getNetwork(),
-                accounts: accountsPromise
+                accounts: accountsPromise,
             });
             // Account address
             address = getAddress(address);
@@ -20467,7 +20515,9 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         /**
          *  The polling interval (default: 4000 ms)
          */
-        get pollingInterval() { return this.#pollingInterval; }
+        get pollingInterval() {
+            return this.#pollingInterval;
+        }
         set pollingInterval(value) {
             if (!Number.isInteger(value) || value < 0) {
                 throw new Error("invalid interval");
@@ -20492,10 +20542,10 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         #connect;
         constructor(url, network, options) {
             if (url == null) {
-                url = "http:/\/localhost:8545";
+                url = "http://localhost:8545";
             }
             super(network, options);
-            if (typeof (url) === "string") {
+            if (typeof url === "string") {
                 this.#connect = new FetchRequest(url);
             }
             else {
@@ -20531,11 +20581,13 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             return null;
         }
         // These *are* the droids we're looking for.
-        if (typeof (value.message) === "string" && value.message.match(/revert/i) && isHexString(value.data)) {
+        if (typeof value.message === "string" &&
+            value.message.match(/revert/i) &&
+            isHexString(value.data)) {
             return { message: value.message, data: value.data };
         }
         // Spelunk further...
-        if (typeof (value) === "object") {
+        if (typeof value === "object") {
             for (const key in value) {
                 const result = spelunkData(value[key]);
                 if (result) {
@@ -20545,7 +20597,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             return null;
         }
         // Might be a JSON string we can further descend...
-        if (typeof (value) === "string") {
+        if (typeof value === "string") {
             try {
                 return spelunkData(JSON.parse(value));
             }
@@ -20558,17 +20610,17 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             return;
         }
         // These *are* the droids we're looking for.
-        if (typeof (value.message) === "string") {
+        if (typeof value.message === "string") {
             result.push(value.message);
         }
         // Spelunk further...
-        if (typeof (value) === "object") {
+        if (typeof value === "object") {
             for (const key in value) {
                 _spelunkMessage(value[key], result);
             }
         }
         // Might be a JSON string we can further descend...
-        if (typeof (value) === "string") {
+        if (typeof value === "string") {
             try {
                 return _spelunkMessage(JSON.parse(value), result);
             }
@@ -20605,7 +20657,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *  @_subsection: api/providers/thirdparty:Ankr  [providers-ankr]
      */
     const defaultApiKey$1 = "9f7d929b018cdffb338517efa06f58359e86ff1ffd350bc889738523659e7972";
-    function getHost$4(name) {
+    function getHost$5(name) {
         switch (name) {
             case "mainnet":
                 return "rpc.ankr.com/eth";
@@ -20687,7 +20739,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             if (apiKey == null) {
                 apiKey = defaultApiKey$1;
             }
-            const request = new FetchRequest(`https:/\/${getHost$4(network.name)}/${apiKey}`);
+            const request = new FetchRequest(`https:/\/${getHost$5(network.name)}/${apiKey}`);
             request.allowGzip = true;
             if (apiKey === defaultApiKey$1) {
                 request.retryFunc = async (request, response, attempt) => {
@@ -20734,7 +20786,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *  @_subsection: api/providers/thirdparty:Alchemy  [providers-alchemy]
      */
     const defaultApiKey = "_gg7wSSi0KMBsdKnGVfHDueq6xMB9EkC";
-    function getHost$3(name) {
+    function getHost$4(name) {
         switch (name) {
             case "mainnet":
                 return "eth-mainnet.alchemyapi.io";
@@ -20838,7 +20890,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             if (apiKey == null) {
                 apiKey = defaultApiKey;
             }
-            const request = new FetchRequest(`https:/\/${getHost$3(network.name)}/v2/${apiKey}`);
+            const request = new FetchRequest(`https:/\/${getHost$4(network.name)}/v2/${apiKey}`);
             request.allowGzip = true;
             if (apiKey === defaultApiKey) {
                 request.retryFunc = async (request, response, attempt) => {
@@ -21778,7 +21830,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *  @_subsection: api/providers/thirdparty:INFURA  [providers-infura]
      */
     const defaultProjectId = "84842078b09946638c03157f83405213";
-    function getHost$2(name) {
+    function getHost$3(name) {
         switch (name) {
             case "mainnet":
                 return "mainnet.infura.io";
@@ -21924,7 +21976,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             if (projectSecret == null) {
                 projectSecret = null;
             }
-            const request = new FetchRequest(`https:/\/${getHost$2(network.name)}/v3/${projectId}`);
+            const request = new FetchRequest(`https:/\/${getHost$3(network.name)}/v3/${projectId}`);
             request.allowGzip = true;
             if (projectSecret) {
                 request.setCredentials("", projectSecret);
@@ -21965,8 +22017,8 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *
      *  @_subsection: api/providers/thirdparty:QuickNode  [providers-quicknode]
      */
-    const defaultToken = "919b412a057b5e9c9b6dce193c5a60242d6efadb";
-    function getHost$1(name) {
+    const defaultToken$1 = "919b412a057b5e9c9b6dce193c5a60242d6efadb";
+    function getHost$2(name) {
         switch (name) {
             case "mainnet":
                 return "ethers.quiknode.pro";
@@ -22057,7 +22109,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             }
             const network = Network.from(_network);
             if (token == null) {
-                token = defaultToken;
+                token = defaultToken$1;
             }
             const request = QuickNodeProvider.getRequest(network, token);
             super(request, network, { staticNetwork: network });
@@ -22071,7 +22123,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             return super._getProvider(chainId);
         }
         isCommunityResource() {
-            return (this.token === defaultToken);
+            return (this.token === defaultToken$1);
         }
         /**
          *  Returns a new request prepared for %%network%% and the
@@ -22079,12 +22131,12 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
          */
         static getRequest(network, token) {
             if (token == null) {
-                token = defaultToken;
+                token = defaultToken$1;
             }
-            const request = new FetchRequest(`https:/\/${getHost$1(network.name)}/${token}`);
+            const request = new FetchRequest(`https:/\/${getHost$2(network.name)}/${token}`);
             request.allowGzip = true;
             //if (projectSecret) { request.setCredentials("", projectSecret); }
-            if (token === defaultToken) {
+            if (token === defaultToken$1) {
                 request.retryFunc = async (request, response, attempt) => {
                     showThrottleMessage("QuickNodeProvider");
                     return true;
@@ -23048,7 +23100,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *  @_subsection: api/providers/thirdparty:Pocket  [providers-pocket]
      */
     const defaultApplicationId = "62e1ad51b37b8e00394bda3b";
-    function getHost(name) {
+    function getHost$1(name) {
         switch (name) {
             case "mainnet":
                 return "eth-mainnet.gateway.pokt.network";
@@ -23117,7 +23169,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             if (applicationId == null) {
                 applicationId = defaultApplicationId;
             }
-            const request = new FetchRequest(`https:/\/${getHost(network.name)}/v1/lb/${applicationId}`);
+            const request = new FetchRequest(`https:/\/${getHost$1(network.name)}/v1/lb/${applicationId}`);
             request.allowGzip = true;
             if (applicationSecret) {
                 request.setCredentials("", applicationSecret);
@@ -23132,6 +23184,115 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         }
         isCommunityResource() {
             return (this.applicationId === defaultApplicationId);
+        }
+    }
+
+    /**
+     *  [[link-covalent]] provides a third-party service for connecting to
+     *  various blockchains over JSON-RPC.
+     *
+     *  **Supported Networks**
+     *
+     *  - Ethereum Mainnet (``eth-mainnet``)
+     *
+     *  @_subsection: api/providers/thirdparty:Covalent  [providers-covalent]
+     */
+    const defaultToken = "cqt_rQBwgX9hXFkMFHY4kXrqKCjqghgK";
+    function getHost(name) {
+        switch (name) {
+            case "mainnet":
+                return "api.covalenthq.com/v1/eth-mainnet";
+            case "goerli":
+                return "api.covalenthq.com/v1/eth-goerli";
+            case "sepolia":
+                return "api.covalenthq.com/v1/eth-sepolia";
+            case "holesky":
+                return "api.covalenthq.com/v1/eth-holesky";
+            case "arbitrum":
+                return "api.covalenthq.com/v1/arbitrum-mainnet";
+            case "arbitrum-goerli":
+                return "api.covalenthq.com/v1/arbitrum-goerli";
+            case "arbitrum-sepolia":
+                return "api.covalenthq.com/v1/arbitrum-sepolia";
+            case "base":
+                return "api.covalenthq.com/v1/base-mainnet";
+            case "base-goerli":
+                return "api.covalenthq.com/v1/base-testnet";
+            case "base-spolia":
+                return "api.covalenthq.com/v1/base-sepolia-testnet";
+            case "bnb":
+                return "api.covalenthq.com/v1/bsc-mainnet";
+            case "bnbt":
+                return "api.covalenthq.com/v1/bsc-testnet";
+            case "matic":
+                return "api.covalenthq.com/v1/matic-mainnet";
+            case "matic-mumbai":
+                return "api.covalenthq.com/v1/matic-mumbai";
+            case "optimism":
+                return "api.covalenthq.com/v1/optimism-mainnet";
+            case "optimism-goerli":
+                return "api.covalenthq.com/v1/optimism-goerli";
+            case "optimism-sepolia":
+                return "api.covalenthq.com/v1/optimism-sepolia";
+        }
+        assertArgument(false, "unsupported network", "network", name);
+    }
+    /**
+     *  The **CovalentRPCProvider** connects to the [[link-covalent]]
+     *  JSON-RPC end-points.
+     *
+     *  By default, a highly-throttled API token is used, which is
+     *  appropriate for quick prototypes and simple scripts. To
+     *  gain access to an increased rate-limit, it is highly
+     *  recommended to [sign up here](link-covalent).
+     */
+    class CovalentRPCProvider extends JsonRpcProvider {
+        /**
+         *  The API token.
+         */
+        token;
+        /**
+         *  Creates a new **CovalentRPCProvider**.
+         */
+        constructor(_network, token) {
+            if (_network == null) {
+                _network = "mainnet";
+            }
+            const network = Network.from(_network);
+            if (token == null) {
+                token = defaultToken;
+            }
+            const request = CovalentRPCProvider.getRequest(network, token);
+            super(request, network, { staticNetwork: network });
+            defineProperties(this, { token });
+        }
+        _getProvider(chainId) {
+            try {
+                return new CovalentRPCProvider(chainId, this.token);
+            }
+            catch (error) { }
+            return super._getProvider(chainId);
+        }
+        isCommunityResource() {
+            return this.token === defaultToken;
+        }
+        /**
+         *  Returns a new request prepared for %%network%% and the
+         *  %%token%%.
+         */
+        static getRequest(network, token) {
+            if (token == null) {
+                token = defaultToken;
+            }
+            const request = new FetchRequest(`https:/\/${getHost(network.name)}/events/?key=${token}`);
+            request.allowGzip = true;
+            if (token === defaultToken) {
+                request.retryFunc = async (request, response, attempt) => {
+                    showThrottleMessage("CovalentRPCProvider");
+                    return true;
+                };
+            }
+            return request;
         }
     }
 
@@ -25166,6 +25327,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         ContractTransactionReceipt: ContractTransactionReceipt,
         ContractTransactionResponse: ContractTransactionResponse,
         ContractUnknownEventPayload: ContractUnknownEventPayload,
+        CovalentRPCProvider: CovalentRPCProvider,
         EnsPlugin: EnsPlugin,
         EnsResolver: EnsResolver,
         ErrorDescription: ErrorDescription,
@@ -25356,6 +25518,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
     exports.ContractTransactionReceipt = ContractTransactionReceipt;
     exports.ContractTransactionResponse = ContractTransactionResponse;
     exports.ContractUnknownEventPayload = ContractUnknownEventPayload;
+    exports.CovalentRPCProvider = CovalentRPCProvider;
     exports.EnsPlugin = EnsPlugin;
     exports.EnsResolver = EnsResolver;
     exports.ErrorDescription = ErrorDescription;
